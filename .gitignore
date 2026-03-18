@@ -6,8 +6,8 @@ evombt-tests/test_output.log
 evombt-tests/logFile.log
 evombt-tests/target/
 build_log.txt
-run_tests.bat
 compile.log
+
 
 # Python
 __pycache__/
