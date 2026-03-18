@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>EvoMBT Live Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    header h1 { font-size: 2rem; color: #7c9ef8; letter-spacing: 1px; }
+    header p  { color: #888; margin-top: 4px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .panel {
+      background: #1a1d2e;
+      border: 1px solid #2a2d3e;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .panel h2 {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #7c9ef8;
+      margin-bottom: 16px;
+      border-bottom: 1px solid #2a2d3e;
+      padding-bottom: 10px;
+    }
+
+    /* EFSM state */
+    .efsm {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.95rem;
+    }
+    .state-box {
+      padding: 8px 16px;
+      border-radius: 8px;
+      border: 2px solid #444;
+      transition: all 0.3s;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    .state-box.active { border-color: #7c9ef8; background: #1e2440; color: #7c9ef8; }
+    .state-box.inactive { color: #555; }
+    .arrow { color: #555; font-size: 1.2rem; }
+
+    /* Orders */
+    #order-list { display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
+    .order-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: #0f1117;
+      border: 1px solid #2a2d3e;
+      animation: fadeIn 0.3s ease;
+      transition: all 0.3s;
+    }
+    .order-item.shipped { opacity: 0.6; }
+    .order-item.cancelled { opacity: 0.4; }
+    .order-item .title { flex: 1; font-weight: 600; }
+    .order-item .meta { color: #aaa; font-size: 0.85rem; margin-left: auto; margin-right: 16px; }
+    .badge {
+      font-size: 0.72rem; padding: 4px 10px; border-radius: 20px;
+      font-weight: bold; text-transform: uppercase;
+    }
+    .badge.CART { background: #2a2d3e; color: #aaa; }
+    .badge.PENDING_PAYMENT { background: #4a3b10; color: #f0a040; }
+    .badge.PAID { background: #1a3a20; color: #4caf50; }
+    .badge.SHIPPED { background: #1a2a40; color: #7c9ef8; }
+    .badge.CANCELLED { background: #4a1a1a; color: #f44336; }
+    
+    .empty { color: #555; font-size: 0.9rem; padding: 12px 0; }
+
+    /* Log */
+    #log-list {
+      display: flex; flex-direction: column; gap: 6px;
+      max-height: 320px; overflow-y: auto;
+    }
+    #log-list::-webkit-scrollbar { width: 4px; }
+    #log-list::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+
+    .log-entry {
+      display: flex; gap: 10px; align-items: baseline;
+      font-size: 0.85rem; animation: fadeIn 0.2s ease;
+      padding: 5px 8px; border-radius: 6px;
+    }
+    .log-entry:hover { background: #0f1117; }
+    .log-entry .ts { color: #555; font-size: 0.75rem; white-space: nowrap; }
+    .log-entry .trans { color: #7c9ef8; font-family: monospace; }
+    .log-entry .sut  { color: #ccc; }
+    .log-entry .state{ color: #f0a040; font-size: 0.78rem; }
+
+    /* Stats */
+    .stats-row { display: flex; gap: 12px; margin-top: 4px; }
+    .stat {
+      flex: 1; background: #0f1117; border: 1px solid #2a2d3e;
+      border-radius: 8px; padding: 12px 16px; text-align: center;
+    }
+    .stat .val { font-size: 1.8rem; font-weight: 700; color: #7c9ef8; }
+    .stat .lbl { color: #666; font-size: 0.78rem; margin-top: 2px; }
+
+    /* Connection badge */
+    #conn-badge {
+      position: fixed; top: 16px; right: 20px;
+      font-size: 0.75rem; padding: 4px 12px; border-radius: 20px;
+      background: #1a1d2e; border: 1px solid #333;
+    }
+    #conn-badge.ok  { color: #4caf50; border-color: #4caf50; }
+    #conn-badge.err { color: #f44336; border-color: #f44336; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<div id="conn-badge" class="err">● Connecting…</div>
+
+<header>
+  <h1>EvoMBT Live Dashboard</h1>
+  <p>Real-time view of the E-Commerce Order API</p>
+</header>
+
+<div class="grid">
+
+  <!-- EFSM panel -->
+  <div class="panel">
+    <h2>EFSM Current State</h2>
+    <div class="efsm">
+      <div class="state-box" id="st-cart">CART</div>
+      <span class="arrow">⟶</span>
+      <div class="state-box" id="st-pending">PENDING_PAYMENT</div>
+      <span class="arrow">⟶</span>
+      <div class="state-box" id="st-paid">PAID</div>
+      <span class="arrow">⟶</span>
+      <div class="state-box" id="st-shipped">SHIPPED</div>
+      <div style="width:100%;"></div>
+      <span class="arrow" style="margin-left:20px;">↘</span>
+      <div class="state-box" id="st-cancelled">CANCELLED</div>
+    </div>
+  </div>
+
+  <!-- Stats panel -->
+  <div class="panel">
+    <h2>Test Run Stats</h2>
+    <div class="stats-row">
+      <div class="stat"><div class="val" id="stat-steps">0</div><div class="lbl">Transitions</div></div>
+      <div class="stat"><div class="val" id="stat-orders">0</div><div class="lbl">Total Orders</div></div>
+      <div class="stat"><div class="val" id="stat-time">—</div><div class="lbl">Avg ms/step</div></div>
+    </div>
+  </div>
+
+  <!-- Orders panel -->
+  <div class="panel">
+    <h2>Orders in Database</h2>
+    <div id="order-list"><span class="empty">No orders yet.</span></div>
+  </div>
+
+  <!-- Log panel -->
+  <div class="panel">
+    <h2>EvoMBT Test Log</h2>
+    <div id="log-list"></div>
+  </div>
+
+</div>
+
+<script>
+  const orders = {};
+  let stepCount = 0, totalMs = 0;
+
+  function badge(conn) {
+    const el = document.getElementById("conn-badge");
+    el.textContent = conn ? "● Connected" : "● Disconnected";
+    el.className = conn ? "ok" : "err";
+  }
+
+  function renderOrders() {
+    const list = document.getElementById("order-list");
+    const items = Object.values(orders).sort((a,b) => b.id - a.id).slice(0, 5); // show last 5
+    if (!items.length) { list.innerHTML = '<span class="empty">No orders in database.</span>'; return; }
+    list.innerHTML = items.map(o => `
+      <div class="order-item ${o.status.toLowerCase()}">
+        <span class="title">Order #${o.id}</span>
+        <span class="meta">${o.items_count} items | $${o.total_price}</span>
+        <span class="badge ${o.status}">${o.status.replace('_', ' ')}</span>
+      </div>`).join('');
+    document.getElementById("stat-orders").textContent = Object.keys(orders).length;
+  }
+
+  function setEFSMState(state) {
+    const states = ["CART", "PENDING_PAYMENT", "PAID", "SHIPPED", "CANCELLED"];
+    states.forEach(s => {
+      const el = document.getElementById("st-" + s.toLowerCase().split('_')[0]);
+      if (el) el.className = "state-box " + (state === s ? "active" : "inactive");
+    });
+  }
+
+  function addLog(entry) {
+    const list = document.getElementById("log-list");
+    const div = document.createElement("div");
+    div.className = "log-entry";
+    const ts = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+    div.innerHTML = `
+      <span class="ts">${ts}</span>
+      <span class="state">[${entry.state || '?'}]</span>
+      <span class="trans">${entry.transition || ''}</span>
+      <span class="sut">${entry.sut || ''}</span>`;
+    list.prepend(div);
+
+    stepCount++;
+    if (entry.ms) { totalMs += entry.ms; }
+    document.getElementById("stat-steps").textContent = stepCount;
+    document.getElementById("stat-time").textContent = stepCount ? Math.round(totalMs / stepCount) : "—";
+    if (entry.state) setEFSMState(entry.state);
+  }
+
+  // Order events
+  const es1 = new EventSource("/events/orders");
+  es1.onopen  = () => badge(true);
+  es1.onerror = () => badge(false);
+  es1.onmessage = e => {
+    const d = JSON.parse(e.data);
+    if (d.type === "created" || d.type === "updated") { orders[d.order.id] = d.order; renderOrders(); }
+    if (d.type === "deleted") { delete orders[d.id]; renderOrders(); }
+    if (d.type === "cleared") { Object.keys(orders).forEach(k => delete orders[k]); renderOrders(); }
+  };
+
+  // Log events
+  const es2 = new EventSource("/events/log");
+  es2.onmessage = e => {
+    const d = JSON.parse(e.data);
+    if (d.type !== "connected" && d.type !== "ping") addLog(d);
+  };
+
+  // Load initial orders
+  fetch("/orders").then(r => r.json()).then(list => {
+    list.forEach(o => orders[o.id] = o);
+    renderOrders();
+  });
+</script>
+</body>
+</html>

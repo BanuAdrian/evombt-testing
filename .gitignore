@@ -1,0 +1,18 @@
+# Temp files generated at runtime
+evombt-tests/cp.txt
+evombt-tests/out.txt
+evombt-tests/err.txt
+evombt-tests/test_output.log
+evombt-tests/logFile.log
+evombt-tests/target/
+build_log.txt
+run_tests.bat
+compile.log
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# SQLite database
+*.db
