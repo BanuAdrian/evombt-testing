@@ -51,6 +51,8 @@ class OrderResponse(BaseModel):
     id: int
     status: str
     items_count: int
+    has_voucher: int
+    wallet_amount: int
     total_price: int
     model_config = {"from_attributes": True}
 
@@ -59,12 +61,17 @@ class OrderResponse(BaseModel):
 def notify_order(order: Order, event_type: str):
     broadcast_sync(_queues, {
         "type": event_type, 
-        "order": {"id": order.id, "status": order.status, "items_count": order.items_count, "total_price": order.total_price}
+        "order": {"id": order.id, "status": order.status, "items_count": order.items_count, "total_price": order.total_price, "has_voucher": order.has_voucher, "wallet_amount": order.wallet_amount}
     })
+
+def recalculate_total(order: Order):
+    base_cost = order.items_count * 10
+    discount = 5 if order.has_voucher == 1 else 0
+    order.total_price = max(0, base_cost - discount)
 
 @app.post("/orders", response_model=OrderResponse, status_code=201)
 def create_order(db: Session = Depends(get_db)):
-    db_order = Order(status="CART", items_count=0, total_price=0)
+    db_order = Order(status="Empty", items_count=0, has_voucher=0, wallet_amount=random.randint(10, 100), total_price=0)
     db.add(db_order)
     db.commit()
     db.refresh(db_order)
@@ -78,10 +85,58 @@ def get_orders(db: Session = Depends(get_db)):
 @app.post("/orders/{order_id}/items", response_model=OrderResponse)
 def add_item(order_id: int, db: Session = Depends(get_db)):
     db_order = db.query(Order).filter(Order.id == order_id).first()
-    if not db_order or db_order.status != "CART":
-        raise HTTPException(status_code=400, detail="Invalid order or not in CART")
+    if not db_order or db_order.status not in ["Empty", "N_Items", "Voucher_Applied", "N_Items_Voucher"]:
+        raise HTTPException(status_code=400, detail="Cannot add item in this state")
+    
     db_order.items_count += 1
-    db_order.total_price += random.randint(10, 50)
+    recalculate_total(db_order)
+    
+    # State mutation logic
+    if db_order.status == "Empty":
+        db_order.status = "N_Items"
+    elif db_order.status == "Voucher_Applied":
+        db_order.status = "N_Items_Voucher"
+        
+    db.commit()
+    db.refresh(db_order)
+    notify_order(db_order, "updated")
+    return db_order
+
+@app.delete("/orders/{order_id}/items", response_model=OrderResponse)
+def delete_item(order_id: int, db: Session = Depends(get_db)):
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if not db_order or db_order.status not in ["N_Items", "N_Items_Voucher"]:
+        raise HTTPException(status_code=400, detail="No items to delete in this state")
+    
+    db_order.items_count = max(0, db_order.items_count - 1)
+    recalculate_total(db_order)
+    
+    if db_order.items_count == 0:
+        if db_order.has_voucher == 1:
+            db_order.status = "Voucher_Applied"
+        else:
+            db_order.status = "Empty"
+
+    db.commit()
+    db.refresh(db_order)
+    notify_order(db_order, "updated")
+    return db_order
+
+@app.post("/orders/{order_id}/voucher", response_model=OrderResponse)
+def apply_voucher(order_id: int, db: Session = Depends(get_db)):
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if not db_order or db_order.status not in ["Empty", "N_Items"]:
+        raise HTTPException(status_code=400, detail="Voucher cannot be applied now (already applied or past checkout)")
+    
+    db_order.has_voucher = 1
+    recalculate_total(db_order)
+    
+    # State mutation
+    if db_order.status == "Empty":
+        db_order.status = "Voucher_Applied"
+    elif db_order.status == "N_Items":
+        db_order.status = "N_Items_Voucher"
+        
     db.commit()
     db.refresh(db_order)
     notify_order(db_order, "updated")
@@ -90,42 +145,109 @@ def add_item(order_id: int, db: Session = Depends(get_db)):
 @app.put("/orders/{order_id}/checkout", response_model=OrderResponse)
 def checkout(order_id: int, db: Session = Depends(get_db)):
     db_order = db.query(Order).filter(Order.id == order_id).first()
-    if not db_order or db_order.status != "CART" or db_order.items_count == 0:
-        raise HTTPException(status_code=400, detail="Invalid order or empty cart")
-    db_order.status = "PENDING_PAYMENT"
+    if not db_order or db_order.status not in ["N_Items", "N_Items_Voucher"]:
+        raise HTTPException(status_code=400, detail="Cannot checkout an empty cart or already checked out cart")
+    
+    db_order.status = "Checkout"
     db.commit()
     db.refresh(db_order)
     notify_order(db_order, "updated")
     return db_order
 
-@app.put("/orders/{order_id}/pay", response_model=OrderResponse)
-def pay(order_id: int, db: Session = Depends(get_db)):
+@app.put("/orders/{order_id}/checkout/cancel", response_model=OrderResponse)
+def cancel_checkout(order_id: int, db: Session = Depends(get_db)):
     db_order = db.query(Order).filter(Order.id == order_id).first()
-    if not db_order or db_order.status != "PENDING_PAYMENT":
-        raise HTTPException(status_code=400, detail="Invalid order or not pending payment")
-    db_order.status = "PAID"
+    if not db_order or db_order.status != "Checkout":
+        raise HTTPException(status_code=400, detail="Cannot cancel checkout if not in Checkout state")
+        
+    if db_order.has_voucher == 1:
+        db_order.status = "N_Items_Voucher"
+    else:
+        db_order.status = "N_Items"
+        
     db.commit()
     db.refresh(db_order)
     notify_order(db_order, "updated")
     return db_order
 
-@app.put("/orders/{order_id}/ship", response_model=OrderResponse)
-def ship(order_id: int, db: Session = Depends(get_db)):
+@app.put("/orders/{order_id}/pay/wallet", response_model=OrderResponse)
+def pay_with_wallet(order_id: int, db: Session = Depends(get_db)):
+    import random
+    if random.random() < 0.20:
+        raise HTTPException(status_code=400, detail="Wallet Service is down. Random bug injected!")
+
     db_order = db.query(Order).filter(Order.id == order_id).first()
-    if not db_order or db_order.status != "PAID":
-        raise HTTPException(status_code=400, detail="Invalid order or not paid")
-    db_order.status = "SHIPPED"
+    if not db_order or db_order.status != "Checkout":
+        raise HTTPException(status_code=400, detail="Not in checkout")
+        
+    if db_order.wallet_amount < db_order.total_price:
+        raise HTTPException(status_code=400, detail="Insufficient wallet funds")
+        
+    db_order.wallet_amount -= db_order.total_price
+    db_order.status = "Success"
     db.commit()
     db.refresh(db_order)
     notify_order(db_order, "updated")
     return db_order
 
-@app.put("/orders/{order_id}/cancel", response_model=OrderResponse)
-def cancel(order_id: int, db: Session = Depends(get_db)):
+@app.put("/orders/{order_id}/pay/external", response_model=OrderResponse)
+def pay_external(order_id: int, db: Session = Depends(get_db)):
     db_order = db.query(Order).filter(Order.id == order_id).first()
-    if not db_order or db_order.status in ["SHIPPED", "CANCELLED"]:
-        raise HTTPException(status_code=400, detail="Cannot cancel shipped or already cancelled order")
-    db_order.status = "CANCELLED"
+    if not db_order or db_order.status != "Checkout":
+        raise HTTPException(status_code=400, detail="Not in checkout")
+        
+    if db_order.wallet_amount >= db_order.total_price:
+        raise HTTPException(status_code=400, detail="You have enough funds, use pay/wallet instead")
+        
+    db_order.status = "Pending_Pay"
+    db.commit()
+    db.refresh(db_order)
+    notify_order(db_order, "updated")
+    return db_order
+
+@app.put("/orders/{order_id}/pay/external/success", response_model=OrderResponse)
+def external_pay_success(order_id: int, db: Session = Depends(get_db)):
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if not db_order or db_order.status != "Pending_Pay":
+        raise HTTPException(status_code=400, detail="Not waiting for external payment")
+        
+    db_order.status = "Success"
+    db.commit()
+    db.refresh(db_order)
+    notify_order(db_order, "updated")
+    return db_order
+
+@app.put("/orders/{order_id}/pay/external/fail", response_model=OrderResponse)
+def external_pay_fail(order_id: int, db: Session = Depends(get_db)):
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if not db_order or db_order.status != "Pending_Pay":
+        raise HTTPException(status_code=400, detail="Not waiting for external payment")
+        
+    db_order.status = "Fail"
+    db.commit()
+    db.refresh(db_order)
+    notify_order(db_order, "updated")
+    return db_order
+
+@app.put("/orders/{order_id}/pay/external/cancel", response_model=OrderResponse)
+def external_pay_cancel(order_id: int, db: Session = Depends(get_db)):
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if not db_order or db_order.status != "Pending_Pay":
+        raise HTTPException(status_code=400, detail="Not waiting for external payment")
+        
+    db_order.status = "Checkout"
+    db.commit()
+    db.refresh(db_order)
+    notify_order(db_order, "updated")
+    return db_order
+    
+@app.put("/orders/{order_id}/pay/external/retry", response_model=OrderResponse)
+def external_pay_retry(order_id: int, db: Session = Depends(get_db)):
+    db_order = db.query(Order).filter(Order.id == order_id).first()
+    if not db_order or db_order.status != "Fail":
+        raise HTTPException(status_code=400, detail="Can only retry from Fail state")
+        
+    db_order.status = "Pending_Pay"
     db.commit()
     db.refresh(db_order)
     notify_order(db_order, "updated")
@@ -139,10 +261,17 @@ def clear_orders(db: Session = Depends(get_db)):
     return None
 
 # ---- Test log endpoint (EvoMBT runner posts steps here) --------
+_cached_test_logs = []
+
 @app.post("/test-log")
 async def post_test_log(entry: dict):
+    _cached_test_logs.append(entry)
     await _broadcast(_log_queues, entry)
     return {"ok": True}
+
+@app.get("/test-log/history")
+async def get_test_log_history():
+    return _cached_test_logs
 
 # ---- SSE streams -----------------------------------------------
 @app.get("/events/orders")

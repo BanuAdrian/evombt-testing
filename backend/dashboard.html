@@ -2,266 +2,559 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EvoMBT Live Dashboard</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'Segoe UI', system-ui, sans-serif;
-      background: #0f1117;
-      color: #e0e0e0;
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at top right, #11152a, #07090f 50%);
+      color: #e2e8f0;
       min-height: 100vh;
-      padding: 24px;
+      padding: 30px;
     }
 
     header {
       text-align: center;
-      margin-bottom: 32px;
+      margin-bottom: 40px;
+      animation: fadeIn 0.8s ease;
     }
-    header h1 { font-size: 2rem; color: #7c9ef8; letter-spacing: 1px; }
-    header p  { color: #888; margin-top: 4px; }
+    header h1 { 
+      font-size: 2.8rem; 
+      background: linear-gradient(135deg, #7c9ef8, #b084f5); 
+      -webkit-background-clip: text; 
+      -webkit-text-fill-color: transparent; 
+      letter-spacing: -0.5px;
+      font-weight: 700;
+    }
+    header p { color: #8e9db0; margin-top: 8px; font-size: 1.1rem; }
 
     .grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      max-width: 1100px;
+      grid-template-columns: 6fr 4fr;
+      gap: 24px;
+      width: 95%;
+      max-width: 1800px;
       margin: 0 auto;
     }
 
+    /* Glassmorphism Panels */
     .panel {
-      background: #1a1d2e;
-      border: 1px solid #2a2d3e;
-      border-radius: 12px;
-      padding: 20px;
+      background: rgba(25, 29, 43, 0.45);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     }
+    
+    .panel-full { grid-column: 1 / -1; }
 
     .panel h2 {
-      font-size: 0.85rem;
+      font-size: 0.9rem;
       text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: #7c9ef8;
-      margin-bottom: 16px;
-      border-bottom: 1px solid #2a2d3e;
-      padding-bottom: 10px;
+      letter-spacing: 2px;
+      color: #8fa5e8;
+      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      padding-bottom: 12px;
+      font-weight: 600;
     }
 
-    /* EFSM state */
-    .efsm {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 12px;
-      font-size: 0.95rem;
+    /* Vis.js Graph Canvas */
+    #network {
+      width: 100%;
+      height: 400px;
+      border-radius: 12px;
+      background: rgba(10, 12, 18, 0.4);
+      border: 1px solid rgba(255,255,255,0.05);
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.5);
     }
-    .state-box {
-      padding: 8px 16px;
-      border-radius: 8px;
-      border: 2px solid #444;
-      transition: all 0.3s;
-      font-weight: 600;
-      font-size: 0.9rem;
-    }
-    .state-box.active { border-color: #7c9ef8; background: #1e2440; color: #7c9ef8; }
-    .state-box.inactive { color: #555; }
-    .arrow { color: #555; font-size: 1.2rem; }
+    .vis-network:focus { outline: none; }
 
     /* Orders */
-    #order-list { display: flex; flex-direction: column; gap: 8px; min-height: 40px; }
+    #order-list { display: flex; flex-direction: column; gap: 10px; min-height: 40px; }
     .order-item {
       display: flex;
       align-items: center;
-      gap: 10px;
-      padding: 10px 14px;
-      border-radius: 8px;
-      background: #0f1117;
-      border: 1px solid #2a2d3e;
-      animation: fadeIn 0.3s ease;
-      transition: all 0.3s;
+      gap: 12px;
+      padding: 14px 18px;
+      border-radius: 12px;
+      background: rgba(10, 12, 18, 0.6);
+      border: 1px solid rgba(255,255,255,0.03);
+      transition: all 0.3s ease;
+      animation: slideIn 0.4s ease;
     }
-    .order-item.shipped { opacity: 0.6; }
-    .order-item.cancelled { opacity: 0.4; }
-    .order-item .title { flex: 1; font-weight: 600; }
-    .order-item .meta { color: #aaa; font-size: 0.85rem; margin-left: auto; margin-right: 16px; }
-    .badge {
-      font-size: 0.72rem; padding: 4px 10px; border-radius: 20px;
-      font-weight: bold; text-transform: uppercase;
-    }
-    .badge.CART { background: #2a2d3e; color: #aaa; }
-    .badge.PENDING_PAYMENT { background: #4a3b10; color: #f0a040; }
-    .badge.PAID { background: #1a3a20; color: #4caf50; }
-    .badge.SHIPPED { background: #1a2a40; color: #7c9ef8; }
-    .badge.CANCELLED { background: #4a1a1a; color: #f44336; }
+    .order-item:hover { background: rgba(25, 29, 43, 0.8); border-color: rgba(255,255,255,0.1); }
+    .order-item .title { flex: 1; font-weight: 600; color: #fff; }
+    .order-item .meta { color: #8e9db0; font-size: 0.85rem; font-weight: 500; margin-left: auto; text-align: right; }
+    .order-item .money { color: #4ade80; font-weight: 600; }
+    .order-item .wallet { color: #facc15; font-weight: 600; }
     
-    .empty { color: #555; font-size: 0.9rem; padding: 12px 0; }
+    .badge {
+      font-size: 0.75rem; padding: 6px 12px; border-radius: 20px;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .badge.Empty { background: #2f364a; color: #a1b0cc; }
+    .badge.N_Items { background: rgba(234, 179, 8, 0.15); border: 1px solid rgba(234,179,8,0.3); color: #facc15; }
+    .badge.Voucher_Applied { background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168,85,247,0.3); color: #d8b4fe; }
+    .badge.N_Items_Voucher { background: rgba(6, 182, 212, 0.15); border: 1px solid rgba(6,182,212,0.3); color: #67e8f9; }
+    .badge.Checkout { background: rgba(249, 115, 22, 0.15); border: 1px solid rgba(249,115,22,0.3); color: #fdba74; }
+    .badge.Pending_Pay { background: rgba(59, 130, 246, 0.15); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd; }
+    .badge.Success { background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34,197,94,0.3); color: #86efac; box-shadow: 0 0 12px rgba(34,197,94,0.2); }
+    .badge.Fail { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
 
     /* Log */
     #log-list {
-      display: flex; flex-direction: column; gap: 6px;
-      max-height: 320px; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 8px;
+      max-height: 380px; overflow-y: auto; padding-right: 4px;
     }
-    #log-list::-webkit-scrollbar { width: 4px; }
-    #log-list::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+    #log-list::-webkit-scrollbar { width: 6px; }
+    #log-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+    #log-list::-webkit-scrollbar-track { background: transparent; }
 
     .log-entry {
-      display: flex; gap: 10px; align-items: baseline;
-      font-size: 0.85rem; animation: fadeIn 0.2s ease;
-      padding: 5px 8px; border-radius: 6px;
+      display: flex; gap: 12px; align-items: center;
+      font-size: 0.85rem; padding: 8px 12px; border-radius: 8px;
+      background: rgba(0,0,0,0.2);
+      border-left: 3px solid #434d6b;
+      animation: slideIn 0.3s ease;
     }
-    .log-entry:hover { background: #0f1117; }
-    .log-entry .ts { color: #555; font-size: 0.75rem; white-space: nowrap; }
-    .log-entry .trans { color: #7c9ef8; font-family: monospace; }
-    .log-entry .sut  { color: #ccc; }
-    .log-entry .state{ color: #f0a040; font-size: 0.78rem; }
+    .log-entry:hover { background: rgba(0,0,0,0.4); }
+    .log-entry .ts { color: #6b7280; font-family: monospace; font-size: 0.8rem; }
+    .log-entry .state{ color: #9ca3af; font-family: monospace; font-weight: 600; width: 100px; }
+    .log-entry .trans { color: #818cf8; font-weight: 600; flex: 1; }
 
     /* Stats */
-    .stats-row { display: flex; gap: 12px; margin-top: 4px; }
+    .stats-row { display: flex; gap: 16px; margin-top: 10px; }
     .stat {
-      flex: 1; background: #0f1117; border: 1px solid #2a2d3e;
-      border-radius: 8px; padding: 12px 16px; text-align: center;
+      flex: 1; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 12px; padding: 16px; text-align: center;
+      box-shadow: inset 0 2px 10px rgba(0,0,0,0.1);
     }
-    .stat .val { font-size: 1.8rem; font-weight: 700; color: #7c9ef8; }
-    .stat .lbl { color: #666; font-size: 0.78rem; margin-top: 2px; }
+    .stat .val { font-size: 2.2rem; font-weight: 700; color: #fff; text-shadow: 0 2px 10px rgba(255,255,255,0.1); }
+    .stat .lbl { color: #8e9db0; font-size: 0.8rem; margin-top: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 1px;}
 
     /* Connection badge */
     #conn-badge {
-      position: fixed; top: 16px; right: 20px;
-      font-size: 0.75rem; padding: 4px 12px; border-radius: 20px;
-      background: #1a1d2e; border: 1px solid #333;
+      position: fixed; top: 24px; right: 30px;
+      font-size: 0.8rem; padding: 6px 16px; border-radius: 30px;
+      background: rgba(15, 17, 26, 0.8); border: 1px solid rgba(255,255,255,0.1);
+      backdrop-filter: blur(10px); font-weight: 600; z-index: 100;
+      display: flex; align-items: center; gap: 8px;
     }
-    #conn-badge.ok  { color: #4caf50; border-color: #4caf50; }
-    #conn-badge.err { color: #f44336; border-color: #f44336; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; }
+    #conn-badge.ok .status-dot { background: #4ade80; box-shadow: 0 0 10px #4ade80; }
+    #conn-badge.err .status-dot { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
 
+    .btn {
+      background: rgba(124, 158, 248, 0.2);
+      border: 1px solid #7c9ef8;
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    .btn:hover { background: rgba(124, 158, 248, 0.4); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; border-color: #555; background: #222; color: #888; }
+    
+    select {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid rgba(255,255,255,0.2);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+    
+    .playback-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 12px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .log-entry.active-log {
+      border-left-color: #facc15;
+      background: rgba(250, 204, 21, 0.15);
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-10px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-6px); }
+      from { opacity: 0; transform: translateY(-10px); }
       to   { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
 
-<div id="conn-badge" class="err">● Connecting…</div>
+<div id="conn-badge" class="err"><div class="status-dot"></div> <span id="conn-text">Connecting...</span></div>
 
 <header>
-  <h1>EvoMBT Live Dashboard</h1>
-  <p>Real-time view of the E-Commerce Order API</p>
+  <h1>Order EFSM Telemetry</h1>
+  <p>Real-time visual monitoring of Advanced MBT generated paths</p>
 </header>
 
 <div class="grid">
-
   <!-- EFSM panel -->
-  <div class="panel">
-    <h2>EFSM Current State</h2>
-    <div class="efsm">
-      <div class="state-box" id="st-cart">CART</div>
-      <span class="arrow">⟶</span>
-      <div class="state-box" id="st-pending">PENDING_PAYMENT</div>
-      <span class="arrow">⟶</span>
-      <div class="state-box" id="st-paid">PAID</div>
-      <span class="arrow">⟶</span>
-      <div class="state-box" id="st-shipped">SHIPPED</div>
-      <div style="width:100%;"></div>
-      <span class="arrow" style="margin-left:20px;">↘</span>
-      <div class="state-box" id="st-cancelled">CANCELLED</div>
+  <div class="panel panel-full">
+    <h2>Interactive EFSM State Machine (Playback)</h2>
+    <div class="playback-controls">
+      <select id="flowSelect" onchange="selectFlow()">
+        <option value="">Awaiting Tests...</option>
+      </select>
+      <div style="display: flex; gap: 10px;">
+        <button id="btnPrev" class="btn" onclick="prevStep()">⟵ Previous Step</button>
+        <button id="btnNext" class="btn" onclick="nextStep()">Next Step ⟶</button>
+      </div>
+    </div>
+    <div id="network"></div>
+  </div>
+
+
+  <!-- Left Column -->
+  <div style="display: flex; flex-direction: column; gap: 20px;">
+    <!-- Telemetry Row -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+      <div class="panel">
+        <h2>Test Run Telemetry</h2>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-value" id="stat-steps">0</div>
+            <div class="stat-label">Total Transitions</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-value" id="stat-orders">15</div>
+            <div class="stat-label">Orders Reached</div>
+          </div>
+        </div>
+        <div style="font-size: 0.85rem; color: #64748b; margin-top: 15px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
+          ⚙️ <b>EFSM Policy:</b> Random Walk traversal until Terminal State (<i>Success</i>) or <i>Max Depth = 50</i>.
+        </div>
+      </div>
+      
+      <div class="panel">
+        <h2>Internal Variables (SUT Context)</h2>
+        <div id="internal-vars" style="font-size: 0.95rem; line-height: 1.6;">
+          <span style="color: #666; font-style: italic;">Select a Flow to view context variables</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Log Panel -->
+    <div class="panel">
+      <h2>Action Trajectory Log (Flow Steps)</h2>
+      <div id="log-list"></div>
     </div>
   </div>
 
-  <!-- Stats panel -->
-  <div class="panel">
-    <h2>Test Run Stats</h2>
-    <div class="stats-row">
-      <div class="stat"><div class="val" id="stat-steps">0</div><div class="lbl">Transitions</div></div>
-      <div class="stat"><div class="val" id="stat-orders">0</div><div class="lbl">Total Orders</div></div>
-      <div class="stat"><div class="val" id="stat-time">—</div><div class="lbl">Avg ms/step</div></div>
+  <!-- Right Column -->
+  <div style="display: flex; flex-direction: column; gap: 20px;">
+    <div class="panel" style="max-height: 600px; overflow-y: auto;">
+      <h2>SUT Order Snapshots <span style="font-size: 0.8em; font-weight: normal; color: #888;">(All 15 Tests)</span></h2>
+      <div id="order-list"></div>
     </div>
-  </div>
-
-  <!-- Orders panel -->
-  <div class="panel">
-    <h2>Orders in Database</h2>
-    <div id="order-list"><span class="empty">No orders yet.</span></div>
-  </div>
-
-  <!-- Log panel -->
-  <div class="panel">
-    <h2>EvoMBT Test Log</h2>
-    <div id="log-list"></div>
   </div>
 
 </div>
 
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <script>
-  const orders = {};
-  let stepCount = 0, totalMs = 0;
+  // Setup Vis.js Network Graph
+  const nodes = new vis.DataSet([
+    { id: 'Empty', label: 'Empty', x: -600, y: -200 },
+    { id: 'N_Items', label: 'N Items', x: -200, y: -200 },
+    { id: 'Voucher_Applied', label: 'Voucher Applied', x: -600, y: 150 },
+    { id: 'N_Items_Voucher', label: 'N Items + Voucher', x: -200, y: 150 },
+    { id: 'Checkout', label: 'Checkout', x: 250, y: 0 },
+    { id: 'Pending_Pay', label: 'Pending Payment', x: 600, y: -150 },
+    { id: 'Fail', label: 'Fail', x: 900, y: -250, color: {background: '#ef4444', border: '#b91c1c'} },
+    { id: 'Success', label: 'Success', x: 900, y: 150, color: {background: '#22c55e', border: '#15803d'} }
+  ]);
 
-  function badge(conn) {
+  const defaultNodeColor = { background: '#1e293b', border: '#334155', highlight: { border: '#7c9ef8', background: '#312e81' } };
+  nodes.forEach(n => { if(!n.color) nodes.update({id: n.id, color: defaultNodeColor, font: {color: '#cbd5e1', size: 18, face: 'Inter'}}); else nodes.update({id: n.id, font: {color: '#fff', size: 18, face: 'Inter'}}); });
+
+  const edges = new vis.DataSet([
+    { from: 'Empty', to: 'N_Items', label: 'addItem', font: {align: 'top'}, arrows: 'to' },
+    { from: 'Empty', to: 'Voucher_Applied', label: 'applyVoucher', font: {align: 'middle'}, arrows: 'to' },
+    { from: 'N_Items', to: 'N_Items', label: 'addItem', arrows: 'to' },
+    { from: 'N_Items', to: 'Checkout', label: 'checkout', arrows: 'to' },
+    { from: 'N_Items', to: 'N_Items_Voucher', label: 'applyVoucher', arrows: 'to' },
+    { from: 'Voucher_Applied', to: 'N_Items_Voucher', label: 'addItem', arrows: 'to' },
+    { from: 'N_Items_Voucher', to: 'N_Items_Voucher', label: 'addItem', arrows: 'to' },
+    { from: 'N_Items_Voucher', to: 'Checkout', label: 'checkout', arrows: 'to' },
+    { from: 'Checkout', to: 'Pending_Pay', label: 'payExternal', arrows: 'to', dashes: true, font: {color: '#facc15'} },
+    { from: 'Checkout', to: 'Success', label: 'payWithWallet (Math Guard)', arrows: 'to', font: {color: '#4ade80', align: 'bottom'} },
+    { from: 'Pending_Pay', to: 'Success', label: 'externalPaySuccess', arrows: 'to', font: {color: '#4ade80'} },
+    { from: 'Pending_Pay', to: 'Fail', label: 'externalPayFail', arrows: 'to', font: {color: '#f87171'} },
+    
+    // Reversible Edges
+    { from: 'N_Items', to: 'Empty', label: 'deleteItem', arrows: 'to', dashes: true, color: {color: '#f87171'} },
+    { from: 'N_Items_Voucher', to: 'Voucher_Applied', label: 'deleteItem', arrows: 'to', dashes: true, color: {color: '#f87171'} },
+    { from: 'Checkout', to: 'N_Items', label: 'cancelCheckout', arrows: 'to', dashes: true, color: {color: '#fbbf24'} },
+    { from: 'Checkout', to: 'N_Items_Voucher', label: 'cancelCheckout', arrows: 'to', dashes: true, color: {color: '#fbbf24'} },
+    { from: 'Pending_Pay', to: 'Checkout', label: 'cancelPayment', arrows: 'to', dashes: true, color: {color: '#fbbf24'} },
+    { from: 'Fail', to: 'Pending_Pay', label: 'retryPayment', arrows: 'to', font: {color: '#facc15'} }
+  ]);
+  
+  // Apply edge styles
+  edges.forEach(e => {
+    edges.update({id: e.id, width: 3, color: {color: '#64748b', highlight: '#a5b4fc'}, smooth: {type: 'curvedCW', roundness: 0.15}});
+  });
+
+  const container = document.getElementById('network');
+  const data = { nodes: nodes, edges: edges };
+  const options = {
+    physics: { enabled: false }, // Static coords for consistent EFSM view
+    interaction: { hover: true, dragNodes: true, zoomView: true, dragView: true },
+    edges: { font: { size: 14, color: '#e2e8f0', face: 'Inter', strokeWidth: 2, strokeColor: '#000' } },
+    nodes: { shadow: { enabled: true, color: 'rgba(0,0,0,0.5)', size: 15, x: 3, y: 3 }, borderWidth: 3, shape: 'box', margin: 18 }
+  };
+  const network = new vis.Network(container, data, options);
+
+  const orders = {};
+  const flows = {}; 
+  let currentOrderId = null;
+  let currentStepIndex = 0;
+
+  function setBadge(conn) {
     const el = document.getElementById("conn-badge");
-    el.textContent = conn ? "● Connected" : "● Disconnected";
+    document.getElementById("conn-text").textContent = conn ? "Connected to Engine" : "Disconnected";
     el.className = conn ? "ok" : "err";
   }
 
   function renderOrders() {
     const list = document.getElementById("order-list");
-    const items = Object.values(orders).sort((a,b) => b.id - a.id).slice(0, 5); // show last 5
-    if (!items.length) { list.innerHTML = '<span class="empty">No orders in database.</span>'; return; }
-    list.innerHTML = items.map(o => `
-      <div class="order-item ${o.status.toLowerCase()}">
-        <span class="title">Order #${o.id}</span>
-        <span class="meta">${o.items_count} items | $${o.total_price}</span>
-        <span class="badge ${o.status}">${o.status.replace('_', ' ')}</span>
-      </div>`).join('');
+    // Removed the slice(0,5) to display all items as requested, and a scrollbar handles the overflow via CSS
+    const items = Object.values(orders).sort((a,b) => b.id - a.id);
+    if (!items.length) {
+      list.innerHTML = '<span style="color: #666; font-style: italic;">Awaiting test execution...</span>';
+      return;
+    }
+    
+    list.innerHTML = items.map(o => {
+      const hasFailed = flows[o.id] && flows[o.id].some(e => e.transition && e.transition.includes("[FAIL]"));
+      const failStyle = hasFailed ? 'border-color: #ef4444; background: rgba(239, 68, 68, 0.1);' : '';
+      const activeStyle = currentOrderId == o.id ? 'border-color: #7c9ef8; box-shadow: 0 0 10px rgba(124,158,248,0.2)' : '';
+
+      return `
+      <div class="order-item" onclick="document.getElementById('flowSelect').value = '${o.id}'; selectFlow();" style="cursor: pointer; ${hasFailed ? failStyle : activeStyle}">
+        <span class="title">${hasFailed ? '❌' : '🛡️'} Order #${o.id}</span>
+        <span class="meta">${o.items_count} items &bull; <span class="wallet">🪙 ${o.wallet_amount} RON</span> &bull; <span class="money">💵 Cost: ${o.total_price} RON</span> ${o.has_voucher ? '🎟️' : ''}</span>
+        <span class="badge ${o.status}" style="${hasFailed ? 'background: #ef4444; color: #fff;' : ''}">${hasFailed ? 'FAILED TEST' : o.status.replace('_', ' ')}</span>
+      </div>`;
+    }).join('');
     document.getElementById("stat-orders").textContent = Object.keys(orders).length;
   }
 
+  let lastActiveId = null;
+  
   function setEFSMState(state) {
-    const states = ["CART", "PENDING_PAYMENT", "PAID", "SHIPPED", "CANCELLED"];
-    states.forEach(s => {
-      const el = document.getElementById("st-" + s.toLowerCase().split('_')[0]);
-      if (el) el.className = "state-box " + (state === s ? "active" : "inactive");
-    });
+    // Treat terminal strings safely
+    if (state === "TERMINAL" || state === "MAX_DEPTH_REACHED") return;
+    
+    if (lastActiveId && nodes.get(lastActiveId)) {
+      const prev = nodes.get(lastActiveId);
+      let baseColor = defaultNodeColor;
+      if (lastActiveId === 'Success') baseColor = {background: '#22c55e', border: '#15803d'};
+      if (lastActiveId === 'Fail') baseColor = {background: '#ef4444', border: '#b91c1c'};
+      nodes.update({id: lastActiveId, color: baseColor, shadow: options.nodes.shadow});
+    }
+    
+    if (nodes.get(state)) {
+       nodes.update({
+         id: state, 
+         color: { background: '#4f46e5', border: '#818cf8', highlight: { background: '#4f46e5', border: '#818cf8' } },
+         shadow: { enabled: true, color: '#818cf8', size: 20, x: 0, y: 0 }
+       });
+       lastActiveId = state;
+    }
   }
 
-  function addLog(entry) {
-    const list = document.getElementById("log-list");
-    const div = document.createElement("div");
-    div.className = "log-entry";
-    const ts = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-    div.innerHTML = `
-      <span class="ts">${ts}</span>
-      <span class="state">[${entry.state || '?'}]</span>
-      <span class="trans">${entry.transition || ''}</span>
-      <span class="sut">${entry.sut || ''}</span>`;
-    list.prepend(div);
-
-    stepCount++;
-    if (entry.ms) { totalMs += entry.ms; }
-    document.getElementById("stat-steps").textContent = stepCount;
-    document.getElementById("stat-time").textContent = stepCount ? Math.round(totalMs / stepCount) : "—";
-    if (entry.state) setEFSMState(entry.state);
+  function handleLog(entry) {
+    if (!entry.orderId) return;
+    
+    if (!flows[entry.orderId]) {
+      flows[entry.orderId] = [];
+      const dsel = document.getElementById("flowSelect");
+      if (dsel.options[0].value === "") dsel.remove(0); 
+      
+      const opt = document.createElement("option");
+      opt.value = entry.orderId;
+      opt.text = "Visualizing Test Flow (Order #" + entry.orderId + ")";
+      dsel.add(opt);
+    }
+    
+    flows[entry.orderId].push(entry);
+    
+    let totalSteps = 0;
+    Object.values(flows).forEach(arr => totalSteps += arr.length);
+    document.getElementById("stat-steps").textContent = totalSteps;
+    
+    // Auto-select first flow
+    if (!currentOrderId) {
+      document.getElementById("flowSelect").value = entry.orderId;
+      selectFlow();
+    } else if (currentOrderId == entry.orderId) {
+       // Refresh UI if we are watching live
+       renderStep();
+    }
   }
 
-  // Order events
+  function selectFlow() {
+     const sel = document.getElementById("flowSelect").value;
+     if (!sel) return;
+     currentOrderId = sel;
+     currentStepIndex = -1;
+     renderStep();
+     renderOrders(); // highlight active order
+  }
+
+  function prevStep() {
+     if (currentStepIndex > -1) { currentStepIndex--; renderStep(); }
+  }
+
+  function nextStep() {
+     if (currentOrderId && currentStepIndex < flows[currentOrderId].length - 1) { 
+        currentStepIndex++; renderStep(); 
+     }
+  }
+
+  function renderStep() {
+     if (!currentOrderId) return;
+     const flowLogs = flows[currentOrderId];
+     const list = document.getElementById("log-list");
+     
+     // Handle step -1 (Initial SUT condition before any transitions)
+     if (currentStepIndex === -1) {
+        let initialWallet = orders[currentOrderId]?.wallet_amount || 0;
+        
+        list.innerHTML = `<div style="padding:10px; color:#a1b0cc; font-style:italic;">[+] Test Init: Waiting for first action...</div>`;
+        document.getElementById('internal-vars').innerHTML = `
+           <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+             <div style="margin-bottom: 8px;">🛒 Items in Cart: <b style="color: #fff; font-size: 1.1em">0</b></div>
+             <div style="margin-bottom: 8px;">💵 Total Computed Cost: <b style="color: #fff; font-size: 1.1em">0 RON</b></div>
+             <div style="margin-bottom: 8px;">🪙 User Virtual Wallet: <b style="color: #fff; font-size: 1.1em">${initialWallet} RON</b></div>
+             <div>🎟️ Discount Voucher Applied: <b style="color: #fff; font-size: 1.1em">NO</b></div>
+           </div>`;
+        setEFSMState("Empty");
+        
+        document.getElementById("btnPrev").disabled = true;
+        document.getElementById("btnNext").disabled = flowLogs.length === 0;
+        return;
+     }
+
+     document.getElementById("btnPrev").disabled = false;
+     document.getElementById("btnNext").disabled = currentStepIndex >= flowLogs.length - 1;
+     
+     list.innerHTML = "";
+     
+     for(let i = currentStepIndex; i >= 0; i--) {
+        const e = flowLogs[i];
+        let color = "#818cf8";
+        if (e.transition && e.transition.includes("Fail")) color = "#fca5a5";
+        if (e.transition && e.transition.includes("Success")) color = "#86efac";
+        if (e.transition && e.transition.includes("Wallet")) color = "#fde047";
+        if (e.transition && e.transition === "TERMINAL") color = "#4ade80";
+        if (e.transition && (e.transition.includes("cancel") || e.transition.includes("delete"))) color = "#fbbf24";
+        if (e.transition && e.transition === "MAX_DEPTH_REACHED") color = "#ef4444";
+        if (e.transition && e.transition.includes("[FAIL]")) color = "#f87171";
+
+        let errorMarkup = '';
+        if (e.transition && e.transition.includes("[FAIL]") && e.sut && e.sut.error_detail) {
+           errorMarkup = `<div style="font-size: 0.8rem; color: #fca5a5; margin-top: 6px; padding: 6px; background: rgba(239, 68, 68, 0.1); border-left: 2px solid #ef4444; border-radius: 4px;">
+               ❌ <b>Strict Oracle Analysis</b>: ${e.sut.error_detail}
+           </div>`;
+        }
+
+        list.insertAdjacentHTML("beforeend", `
+          <div class="log-entry ${i === currentStepIndex ? 'active-log' : ''}" style="${e.transition && e.transition.includes('[FAIL]') ? 'border-left-color: #ef4444;' : ''}">
+            <div style="flex: 1;">
+               <div>
+                 <span class="ts">[Step ${i+1}]</span>
+                 <span class="state">${e.state || 'SYS'}</span>
+                 <span class="trans" style="color: ${color}">>&nbsp; ${e.transition || 'EVENT'}</span>
+               </div>
+               ${errorMarkup}
+            </div>
+          </div>
+        `);
+     }
+     
+     // Display internal variables in the newly requested sidepanel
+     const activeSUT = flowLogs[currentStepIndex]?.sut;
+     if (activeSUT) {
+        document.getElementById('internal-vars').innerHTML = `
+           <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+             <div style="margin-bottom: 8px;">🛒 Items in Cart: <b style="color: #fff; font-size: 1.1em">${activeSUT.items_count}</b></div>
+             <div style="margin-bottom: 8px;">💵 Total Computed Cost: <b style="color: #fff; font-size: 1.1em">${activeSUT.total_price} RON</b></div>
+             <div style="margin-bottom: 8px;">🪙 User Virtual Wallet: <b style="color: #fff; font-size: 1.1em">${activeSUT.wallet_amount} RON</b></div>
+             <div>🎟️ Discount Voucher Applied: <b style="color: #fff; font-size: 1.1em">${activeSUT.has_voucher ? 'YES' : 'NO'}</b></div>
+           </div>
+        `;
+     } else if (flowLogs[currentStepIndex].transition === "TERMINAL" || flowLogs[currentStepIndex].transition === "MAX_DEPTH_REACHED") {
+        document.getElementById('internal-vars').innerHTML = `
+           <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; text-align: center; color: #4ade80;">
+             <b>${flowLogs[currentStepIndex].transition}</b><br>
+             <span style="font-size: 0.85em; color:#94a3b8">Test Flow Completed.</span>
+           </div>
+        `;
+     }
+
+     const isTerminal = flowLogs[currentStepIndex].transition === "TERMINAL" || flowLogs[currentStepIndex].transition === "MAX_DEPTH_REACHED";
+     const isRejected = flowLogs[currentStepIndex].transition && flowLogs[currentStepIndex].transition.includes("[FAIL]");
+     
+     let visualState = flowLogs[currentStepIndex].state;
+     // Resolve visual illusion: Graph shows the POST-action achieved state
+     if (activeSUT && activeSUT.status && !isTerminal && !isRejected) {
+         visualState = activeSUT.status;
+     }
+
+     setEFSMState(visualState);
+  }
+
+  // SSE Streams
   const es1 = new EventSource("/events/orders");
-  es1.onopen  = () => badge(true);
-  es1.onerror = () => badge(false);
+  es1.onopen  = () => setBadge(true);
+  es1.onerror = () => setBadge(false);
   es1.onmessage = e => {
     const d = JSON.parse(e.data);
     if (d.type === "created" || d.type === "updated") { orders[d.order.id] = d.order; renderOrders(); }
-    if (d.type === "deleted") { delete orders[d.id]; renderOrders(); }
     if (d.type === "cleared") { Object.keys(orders).forEach(k => delete orders[k]); renderOrders(); }
   };
 
-  // Log events
   const es2 = new EventSource("/events/log");
   es2.onmessage = e => {
     const d = JSON.parse(e.data);
-    if (d.type !== "connected" && d.type !== "ping") addLog(d);
+    if (d.type !== "connected" && d.type !== "ping") handleLog(d);
   };
 
-  // Load initial orders
+  // Initial Fetch
   fetch("/orders").then(r => r.json()).then(list => {
     list.forEach(o => orders[o.id] = o);
     renderOrders();
+  });
+
+  // Restore test log history so test flows survive page refresh
+  fetch("/test-log/history").then(r => r.json()).then(history => {
+    history.forEach(entry => handleLog(entry));
   });
 </script>
 </body>
