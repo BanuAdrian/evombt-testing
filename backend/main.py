@@ -257,6 +257,7 @@ def external_pay_retry(order_id: int, db: Session = Depends(get_db)):
 def clear_orders(db: Session = Depends(get_db)):
     db.query(Order).delete()
     db.commit()
+    _cached_test_logs.clear()
     broadcast_sync(_queues, {"type": "cleared"})
     return None
 

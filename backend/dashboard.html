@@ -244,9 +244,6 @@
             <div class="stat-label">Orders Reached</div>
           </div>
         </div>
-        <div style="font-size: 0.85rem; color: #64748b; margin-top: 15px; text-align: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px;">
-          ⚙️ <b>EFSM Policy:</b> Random Walk traversal until Terminal State (<i>Success</i>) or <i>Max Depth = 50</i>.
-        </div>
       </div>
       
       <div class="panel">
@@ -457,7 +454,7 @@
         setEFSMState("Empty");
         
         document.getElementById("btnPrev").disabled = true;
-        document.getElementById("btnNext").disabled = flowLogs.length === 0;
+        document.getElementById("btnNext").disabled = !flowLogs || flowLogs.length === 0;
         return;
      }
 
@@ -537,7 +534,18 @@
   es1.onmessage = e => {
     const d = JSON.parse(e.data);
     if (d.type === "created" || d.type === "updated") { orders[d.order.id] = d.order; renderOrders(); }
-    if (d.type === "cleared") { Object.keys(orders).forEach(k => delete orders[k]); renderOrders(); }
+    if (d.type === "cleared") {
+      // Reset orders
+      Object.keys(orders).forEach(k => delete orders[k]);
+      // Reset flows and dropdown so new test run starts fresh
+      Object.keys(flows).forEach(k => delete flows[k]);
+      currentOrderId = null;
+      currentStepIndex = -1;
+      const dsel = document.getElementById("flowSelect");
+      dsel.innerHTML = '<option value="">Awaiting Tests...</option>';
+      renderOrders();
+      renderStep();
+    }
   };
 
   const es2 = new EventSource("/events/log");

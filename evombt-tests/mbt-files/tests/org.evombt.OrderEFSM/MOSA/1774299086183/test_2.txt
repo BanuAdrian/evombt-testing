@@ -1,0 +1,38 @@
+# Total number of goals covered by this test: 9
+# Empty --> Voucher_Applied
+# Voucher_Applied --> N_Items_Voucher
+# N_Items_Voucher --> N_Items_Voucher
+# N_Items_Voucher --> N_Items_Voucher
+# Checkout --> N_Items_Voucher
+# Pending_Pay --> Success
+# Checkout --> Pending_Pay
+# N_Items_Voucher --> Checkout
+# Pending_Pay --> Checkout
+
+Empty-{ }->Voucher_Applied
+Voucher_Applied-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->Checkout
+Checkout-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->Checkout
+Checkout-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->Checkout
+Checkout-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->Checkout
+Checkout-{ }->Pending_Pay
+Pending_Pay-{ }->Checkout
+Checkout-{ }->Pending_Pay
+Pending_Pay-{ }->Success

@@ -2,11 +2,12 @@ package org.evombt;
 
 import eu.fbk.iv4xr.mbt.efsm.EFSM;
 import eu.fbk.iv4xr.mbt.efsm.EFSMTransition;
-import eu.fbk.iv4xr.mbt.efsm.EFSMState;
 import okhttp3.*;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.*;
 
 public class OrderRunner {
@@ -15,94 +16,128 @@ public class OrderRunner {
     private static int currentOrderId = -1;
 
     public static void main(String[] args) throws Exception {
-        System.out.println("Starting EvoMBT Test Runner with Advanced 8-State Math EFSM...");
+        System.out.println("Starting execution of the full EvoSuite Test Suite...");
+
+        // 1. Dynamic path discovery for offline test generation
+        String basePath = "mbt-files/tests/org.evombt.OrderEFSM/MOSA/";
+        File mosaDir = new File(basePath);
+
+        if (!mosaDir.exists() || !mosaDir.isDirectory()) {
+            System.err.println("Error: MOSA results directory not found at " + basePath);
+            System.err.println("Please run the EvoMBT test generation tool first.");
+            return;
+        }
+
+        File[] subfolders = mosaDir.listFiles(File::isDirectory);
+        if (subfolders == null || subfolders.length == 0) {
+            System.err.println("Error: No timestamp folders found in " + basePath);
+            return;
+        }
+
+        Arrays.sort(subfolders, (f1, f2) -> f2.getName().compareTo(f1.getName()));
+        File latestFolder = subfolders[0];
+        
+        System.out.println("Detected latest test session: " + latestFolder.getName());
+
+        File[] testFiles = latestFolder.listFiles((dir, name) -> name.startsWith("test_") && name.endsWith(".txt"));
+
+        if (testFiles == null || testFiles.length == 0) {
+            System.err.println("Error: No test files found in: " + latestFolder.getAbsolutePath());
+            return;
+        }
+
+        System.out.println("Found " + testFiles.length + " test scenarios. Starting execution...");
+
+        // Clear once before ALL tests so each test gets a unique incrementing Order ID
         clearOrders();
-        Thread.sleep(500);
 
-        int testCases = 15; // 15 test flows for a great demo!
-        long startTime = System.currentTimeMillis();
-        Random rand = new Random();
+        for (File testFile : testFiles) {
+            System.out.println("\n==========================================");
+            System.out.println("Executing Scenario: " + testFile.getName());
+            System.out.println("==========================================");
 
-        for (int i = 1; i <= testCases; i++) {
-            System.out.println("\n--- Flow " + i + " ---");
-            
             OrderEFSM model = new OrderEFSM();
             EFSM efsm = model.getModel();
             
-            // Generate a fresh session in the SUT 
             JsonObject newOrder = createOrder();
             currentOrderId = newOrder.get("id").getAsInt();
             int sutWallet = newOrder.get("wallet_amount").getAsInt();
+            System.out.println("Sync: SUT created Order #" + currentOrderId + " | Wallet: " + sutWallet + " RON");
             
-            // Synchronize the SUT dynamic properties with the EFSM context
             efsm.getConfiguration().getContext().getContext().getVariable("walletAmount").setValue(sutWallet);
-            System.out.println("Sync: SUT created Order #" + currentOrderId + " | Generated Wallet Funds: " + sutWallet + " RON");
 
-            // Execute test path
-            int depthCount = 0;
-            while (true) {
-                depthCount++;
-                if (depthCount > 50) {
-                    System.out.println("Hit maximum depth (50 steps). Terminating Flow.");
-                    postTestLog(currentOrderId, efsm.getConfiguration().getState().getId(), "MAX_DEPTH_REACHED", null);
-                    break;
-                }
+            List<String> steps = Files.readAllLines(testFile.toPath());
+            boolean scenarioPassed = true;
+
+            for (String rawLine : steps) {
+                rawLine = rawLine.trim();
                 
+                // 1. Ignore comments and empty lines from the raw EvoSuite file
+                if (rawLine.isEmpty() || rawLine.startsWith("#")) continue;
+
                 String stateId = efsm.getConfiguration().getState().getId();
-                if (stateId.equals("Success")) {
-                    System.out.println("Reached terminal state: " + stateId + ". Test Flow Completed.");
-                    postTestLog(currentOrderId, stateId, "TERMINAL", null);
-                    break;
-                }
-
-                List<EFSMTransition> available = new ArrayList<>(efsm.transitionsOutOf(efsm.getConfiguration().getState()));
-                Collections.shuffle(available, rand); // random walk
                 
-                EFSMTransition selected = null;
-                for (EFSMTransition t : available) {
-                    if (t.isFeasible(efsm.getConfiguration().getContext())) {
-                        selected = t;
-                        break;
+                // 2. Parse the abstract line (e.g., "Empty-{ }->N_Items") to find the target state
+                String[] parts = rawLine.split("-\\{.*\\}->");
+                if (parts.length != 2) continue;
+                String targetState = parts[1].trim();
+
+                // 3. Translate: Find which feasible transition in our model leads to that target state
+                EFSMTransition transitionToTake = null;
+                for (Object tObj : efsm.transitionsOutOf(efsm.getConfiguration().getState())) {
+                    EFSMTransition t = (EFSMTransition) tObj;
+                    if (t.getTgt().getId().equals(targetState)) {
+                        if (t.isFeasible(efsm.getConfiguration().getContext())) {
+                            transitionToTake = t;
+                            break;
+                        }
                     }
                 }
-                
-                if (selected == null) {
-                    System.err.println("CRITICAL: No feasible transitions from " + stateId + "!");
+
+                if (transitionToTake == null) {
+                    System.out.println("Warning: No feasible transition found to reach " + targetState);
+                    scenarioPassed = false;
                     break;
                 }
 
-                String action = selected.getId();
-                System.out.printf("Step [%-15s] -> %-20s%n", stateId, action);
-                JsonObject sutState = executeOnSUT(action);
+                // Now we have the correct, concrete action ID (e.g., "t_addItem_1")
+                String actionId = transitionToTake.getId(); 
+                System.out.printf("Step: [%-15s] -> %-20s (EvoSuite: %s)%n", stateId, actionId, rawLine);
                 
-                if (sutState != null && sutState.has("error")) {
-                    System.out.println("   [❌] ORACLE FAILED: SUT rejected a valid model transition!");
-                    
-                    JsonObject errPayload = new JsonObject();
-                    errPayload.addProperty("error_detail", "SUT Rejected Valid Model Transition: " + sutState.get("error").getAsString());
-                    
-                    postTestLog(currentOrderId, stateId, action + " [FAIL]", errPayload);
-                    break; // TERMINATE Test Run as Failed Oracle
+                // 4. Execute the concrete action on the Python API SUT
+                JsonObject sutState = executeOnSUT(actionId);
+                
+                if (sutState == null) {
+                    System.out.println("FATAL ERROR: SUT returned null for action " + actionId);
+                    scenarioPassed = false;
+                    break;
                 }
+
+                if (sutState.has("error")) {
+                    System.out.println("ORACLE ERROR: SUT rejected the transition!");
+                    postTestLog(currentOrderId, stateId, actionId + " [FAIL]", sutState);
+                    scenarioPassed = false;
+                    break; 
+                }
+
+                // 5. Update the internal state of the EFSM (Oracle)
+                efsm.transition(null, transitionToTake.getTgt());
                 
-                if (sutState == null) break; // safety fallback
-
-                // 1. Take transition internally BEFORE syncing new vars, so EFSM Guards evaluate on the true PRE-state!
-                efsm.transition(null, selected.getTgt());
-
-                // Note: We bypass strict iv4xr memory checking due to the framework's mathematical self-loop bug, 
-                // and directly rely on the Fuzzing HTTP 400 rejections from the SUT as the active oracle!
+                // 6. Synchronize context variables dynamically based on real SUT data
                 efsm.getConfiguration().getContext().getContext().getVariable("itemsCount").setValue(sutState.get("items_count").getAsInt());
                 efsm.getConfiguration().getContext().getContext().getVariable("cost").setValue(sutState.get("total_price").getAsInt());
-                efsm.getConfiguration().getContext().getContext().getVariable("hasVoucher").setValue(sutState.get("has_voucher").getAsInt());
-                efsm.getConfiguration().getContext().getContext().getVariable("walletAmount").setValue(sutState.get("wallet_amount").getAsInt());
 
-                postTestLog(currentOrderId, stateId, action, sutState);
-                Thread.sleep(50); // Super fast execution so user can play them back manually!
+                postTestLog(currentOrderId, stateId, actionId, sutState);
+                Thread.sleep(300); // Small delay for smooth dashboard visualization
             }
+
+            // Signal end of this test scenario to dashboard
+            if (scenarioPassed) {
+                postTestLog(currentOrderId, efsm.getConfiguration().getState().getId(), "TERMINAL", null);
+            }
+            System.out.println("Scenario execution finished.");
         }
-        
-        System.out.println("\n✅ Advanced Testing Complete! Check the Web Dashboard!");
+        System.out.println("\nAll test scenarios in the suite have been executed!");
     }
 
     private static JsonObject executeOnSUT(String action) throws Exception {

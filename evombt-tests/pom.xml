@@ -51,7 +51,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.1.1</version>
                 <configuration>
-                    <mainClass>org.evombt.EvoMbtRunner</mainClass>
+                    <mainClass>org.evombt.OrderRunner</mainClass>
                 </configuration>
             </plugin>
         </plugins>

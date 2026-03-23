@@ -1,0 +1,21 @@
+# Total number of goals covered by this test: 5
+# Empty --> N_Items
+# N_Items --> N_Items
+# N_Items --> Checkout
+# Pending_Pay --> Success
+# Checkout --> Pending_Pay
+
+Empty-{ }->N_Items
+N_Items-{ }->N_Items
+N_Items-{ }->N_Items
+N_Items-{ }->N_Items
+N_Items-{ }->N_Items
+N_Items-{ }->N_Items
+N_Items-{ }->N_Items
+N_Items-{ }->N_Items
+N_Items-{ }->N_Items
+N_Items-{ }->N_Items
+N_Items-{ }->N_Items
+N_Items-{ }->Checkout
+Checkout-{ }->Pending_Pay
+Pending_Pay-{ }->Success

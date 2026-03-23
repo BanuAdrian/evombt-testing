@@ -1,0 +1,9 @@
+# Total number of goals covered by this test: 2
+# N_Items --> Empty
+# Empty --> N_Items
+
+digraph g {
+"Empty" -> "N_Items" [label = "1-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items" -> "Empty" [label = "2-null/(itemsCount[0] = 1)/itemsCount[0]:=0; cost[0]:=0; /null"];
+"Empty" -> "N_Items" [label = "3-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+}

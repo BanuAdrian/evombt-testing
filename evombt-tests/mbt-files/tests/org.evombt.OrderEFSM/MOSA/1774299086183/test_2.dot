@@ -1,0 +1,40 @@
+# Total number of goals covered by this test: 9
+# Empty --> Voucher_Applied
+# Voucher_Applied --> N_Items_Voucher
+# N_Items_Voucher --> N_Items_Voucher
+# N_Items_Voucher --> N_Items_Voucher
+# Checkout --> N_Items_Voucher
+# Pending_Pay --> Success
+# Checkout --> Pending_Pay
+# N_Items_Voucher --> Checkout
+# Pending_Pay --> Checkout
+
+digraph g {
+"Empty" -> "Voucher_Applied" [label = "1-null/null/hasVoucher[0]:=1; cost[0]:=(cost[0] - 5); /null"];
+"Voucher_Applied" -> "N_Items_Voucher" [label = "2-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "3-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "4-null/(itemsCount[0] > 1)/itemsCount[0]:=(itemsCount[0] - 1); cost[0]:=(cost[0] - 10); /null"];
+"N_Items_Voucher" -> "Checkout" [label = "5-null/(itemsCount[0] > 0)/null/null"];
+"Checkout" -> "N_Items_Voucher" [label = "6-null/(hasVoucher[0] = 1)/null/null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "7-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "8-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "Checkout" [label = "9-null/(itemsCount[0] > 0)/null/null"];
+"Checkout" -> "N_Items_Voucher" [label = "10-null/(hasVoucher[0] = 1)/null/null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "11-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "12-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "13-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "14-null/(itemsCount[0] > 1)/itemsCount[0]:=(itemsCount[0] - 1); cost[0]:=(cost[0] - 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "15-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "16-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "17-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "18-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "19-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "20-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "Checkout" [label = "21-null/(itemsCount[0] > 0)/null/null"];
+"Checkout" -> "N_Items_Voucher" [label = "22-null/(hasVoucher[0] = 1)/null/null"];
+"N_Items_Voucher" -> "Checkout" [label = "23-null/(itemsCount[0] > 0)/null/null"];
+"Checkout" -> "Pending_Pay" [label = "24-null/(walletAmount[100] < cost[0])/null/null"];
+"Pending_Pay" -> "Checkout" [label = "25-null/null/null/null"];
+"Checkout" -> "Pending_Pay" [label = "26-null/(walletAmount[100] < cost[0])/null/null"];
+"Pending_Pay" -> "Success" [label = "27-null/null/null/null"];
+}

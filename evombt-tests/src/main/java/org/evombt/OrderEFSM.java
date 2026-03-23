@@ -12,7 +12,7 @@ public class OrderEFSM {
         // Variables
         Var<Integer> itemsCount = new Var<Integer>("itemsCount", 0);
         Var<Integer> hasVoucher = new Var<Integer>("hasVoucher", 0);
-        Var<Integer> walletAmount = new Var<Integer>("walletAmount", 0);
+        Var<Integer> walletAmount = new Var<Integer>("walletAmount", 100);
         Var<Integer> cost = new Var<Integer>("cost", 0);
         EFSMContext context = new EFSMContext(itemsCount, hasVoucher, walletAmount, cost);
 
