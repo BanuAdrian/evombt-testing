@@ -1,6 +1,0 @@
-# Total number of goals covered by this test: 2
-# N_Items --> Empty
-# Empty --> N_Items
-
-Empty-{ }->N_Items
-N_Items-{ }->Empty

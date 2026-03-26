@@ -1,8 +1,0 @@
-# Total number of goals covered by this test: 3
-# Empty --> N_Items
-# Checkout --> N_Items
-# N_Items --> Checkout
-
-Empty-{ }->N_Items
-N_Items-{ }->Checkout
-Checkout-{ }->N_Items
