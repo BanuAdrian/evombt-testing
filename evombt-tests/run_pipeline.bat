@@ -27,7 +27,7 @@ echo.
 echo ========================================================
 echo [FAZA 1] GENERAREA TESTELOR ABSTRACTE (EvoSuite MOSA)
 echo ========================================================
-java -cp %CLASSPATH% eu.fbk.iv4xr.mbt.Main -sbt -Dsut_efsm="org.evombt.OrderEFSM"
+java -cp %CLASSPATH% eu.fbk.iv4xr.mbt.Main -sbt -Dsut_efsm="org.evombt.OrderEFSM" -Dseed=12345
 if %errorlevel% neq 0 (
     echo.
     echo [EROARE] Faza de generare a esuat!

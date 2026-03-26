@@ -8,6 +8,8 @@ import json
 import os
 import random
 
+random.seed(42)
+
 from database import SessionLocal, engine, Base, Order
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

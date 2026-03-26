@@ -1,0 +1,10 @@
+# Total number of goals covered by this test: 4
+# N_Items --> N_Items_Voucher
+# Empty --> N_Items
+# N_Items_Voucher --> N_Items_Voucher
+# N_Items_Voucher --> N_Items_Voucher
+
+Empty-{ }->N_Items
+N_Items-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher
+N_Items_Voucher-{ }->N_Items_Voucher

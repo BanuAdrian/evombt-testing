@@ -1,81 +1,114 @@
-# EvoMBT E-Commerce Order Platform Testing
+# EvoMBT E-Commerce Order Testing
 
-This project demonstrates **Model-Based Testing (MBT)** using the [EvoMBT](https://github.com/iv4xr-project/EvoMBT) Java library to test a Python FastAPI backend. The system under test (SUT) is a simple **E-Commerce Order Management API** with 5 states.
-
-It features a real-time HTML/JS dashboard where you can see the Java EFSM navigating the state machine and performing API calls against the Python backend.
+Model-Based Testing (MBT) pipeline for a Python FastAPI e-commerce backend, using the [iv4xr-mbt](https://github.com/iv4xr-project/EvoMBT) Java library with EvoSuite MOSA test generation and a live HTML/SSE dashboard.
 
 ## Architecture
 
-*   **Backend (Python/FastAPI):** Exposes an API to create, update, and manage orders. Uses SQLite.
-*   **Model (Java/EvoMBT):** Uses the `iv4xr-mbt` library. Contains `OrderEFSM`, an Extended Finite State Machine modeling the exact state flow of an e-commerce order.
-*   **Dashboard (HTML/SSE):** A beautiful real-time UI that hooks into the backend via Server-Sent Events to show the EFSM transitions and the database state live.
+| Component | Tech | Role |
+|-----------|------|------|
+| **SUT Backend** | Python / FastAPI / SQLite | E-commerce Order API under test |
+| **EFSM Model** | Java / iv4xr-mbt | 8-state Extended Finite State Machine for the order lifecycle |
+| **Test Generator** | EvoSuite MOSA (iv4xr-mbt) | Automatically generates abstract test paths from the EFSM model |
+| **Test Runner** | Java (`OrderRunner.java`) | Concretises abstract paths and executes them against the SUT; implements a Strict Oracle |
+| **Dashboard** | HTML / JS / SSE / vis.js | Real-time interactive visualisation of EFSM traversal and test results |
 
-## The EFSM Model
+## EFSM States
 
-The order lifecycle has 5 distinct states:
-1.  **CART:** Items can be added. 
-2.  **PENDING_PAYMENT:** The user has triggered checkout.
-3.  **PAID:** The order was paid.
-4.  **SHIPPED:** The package was shipped.
-5.  **CANCELLED:** The order was cancelled (possible from CART or PENDING_PAYMENT).
+```
+Empty → N_Items ↔ N_Items_Voucher ← Voucher_Applied
+                          ↓
+                       Checkout
+                       /      \
+              Pending_Pay    Success (wallet)
+              /       \
+           Fail       Success (external)
+```
 
-The test runner navigates these states using a pseudo-random walk, firing `t_addItem`, `t_checkout`, `t_pay`, etc.
+Reversible arcs: `deleteItem`, `cancelCheckout`, `cancelPayment`, `retryPayment`.
 
 ## Prerequisites
 
-To run this project, you need the following installed and in your `PATH`:
+- **Python 3.9+** with `pip`
+- **Java JDK 11+**
+- **Apache Maven 3.8+**
 
-1.  **Python 3.9+**
-2.  **Java JDK 11+**
-3.  **Apache Maven 3.8+**
+> In VS Code, `JAVA_HOME` and `MAVEN_HOME` are auto-detected if set in your environment.
 
-## How to Run
+## Running the Application
 
-You do NOT need Docker to run this. Everything runs natively on your machine.
+### 1. Start the Backend & Dashboard
 
-### 1. Start the Backend API & Dashboard
+**Option A – VS Code (recommended):**
 
-Open a terminal in the `evombt-testing/backend` folder, create a virtual environment, and install dependencies:
+Two tasks are preconfigured in `.vscode/tasks.json`:
 
+| Task | How to run | What it does |
+|------|-----------|-------------|
+| **Start FastAPI Backend** | `Ctrl+Shift+P` → *Tasks: Run Task* → select it | Starts uvicorn in `backend/`, opens a dedicated terminal panel |
+| **Run EvoMBT Pipeline** | `Ctrl+Shift+B` (default build shortcut) | Runs `run_pipeline.bat` - compiles Java, generates tests, executes them |
+
+Start the backend first, open [http://localhost:8000/dashboard](http://localhost:8000/dashboard), then run the pipeline task.
+
+
+**Option B – Terminal:**
 ```bash
 cd backend
-python -m venv .venv
-
-# On Windows:
-.\.venv\Scripts\activate
-# On Linux/Mac:
-# source .venv/bin/activate
-
-pip install -r requirements.txt
-```
-
-Now start the FastAPI server:
-
-```bash
+pip install -r requirements.txt          # first time only
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
+Then open [http://localhost:8000/dashboard](http://localhost:8000/dashboard).
 
-Then, open your browser at [http://localhost:8000/dashboard](http://localhost:8000/dashboard).
+### 2. Run the Full Test Pipeline
 
-### 2. Run the EvoMBT Tests
-
-Keep the backend running and the dashboard open. In a **new terminal window** in the `evombt-testing` folder, simply run:
+Keep the backend running, then in a **new terminal** inside `evombt-tests/`:
 
 ```bash
-.\run_tests.bat
+cd evombt-tests
+.\run_pipeline.bat
 ```
 
-> **Note:** The script will automatically compile the Java project via Maven and execute `OrderRunner.java`. If Java or Maven aren't in your `PATH`, set the variables `JAVA_HOME` and `MAVEN_HOME` in your environment.
+This runs three phases automatically:
 
-Watch your terminal and the real-time Dashboard! You will see EvoMBT rapidly cycling the orders through the state machine.
+| Phase | What happens |
+|-------|-------------|
+| **0 – Compile** | `mvn compile` builds the Java project |
+| **1 – Generate** | EvoSuite MOSA generates abstract test paths from the EFSM model and writes them to `mbt-files/tests/…/test_N.txt` |
+| **2 – Execute** | `OrderRunner` concretises each path, calls the SUT REST API, applies the Strict Oracle, and streams results to the dashboard |
 
-## Running in VS Code
+Watch the dashboard live - completed tests appear as navigable flows in the **SUT Order Snapshots** panel; tests where the Oracle detected a divergence are highlighted in red.
 
-For developers using Visual Studio Code:
+## Dashboard Features
 
-1.  Press `Ctrl+Shift+P` (or `Cmd+Shift+P`) and type **Tasks: Run Task**.
-2.  Select **Start FastAPI Backend**.
-3.  Once the backend is started, open your dashboard in the browser.
-4.  Press `Ctrl+Shift+B` (the default build shortcut) to run the **Run EvoMBT Tests (Order EFSM)** task.
+- **Interactive EFSM graph** – current state highlighted in real time
+- **Playback controls** – step forwards / backwards through any test flow
+- **Internal Variables panel** – live SUT state (items, cost, wallet, voucher)
+- **Action Trajectory Log** – full step-by-step log with Oracle error details
+- **SUT Order Snapshots** – all test runs; red = Oracle failure, click to visualise on graph
+- **Refresh-safe** – test log history is cached server-side and restored on page reload
 
-Alternatively, use the **Run and Debug** panel to launch the Python backend natively.
+## Strict Oracle
+
+After each transition the runner compares the model's expected outcome against the SUT response:
+
+- **SUT rejects a model-valid action** → `[FAIL]` logged, test terminates
+- **SUT accepts a model-invalid action** → backend guard catches it and returns HTTP 400
+
+A 20% random failure is injected into `pay_with_wallet` to demonstrate Oracle detection (see `backend/main.py` → `pay_with_wallet`). Remove the `random.random()` block to restore normal behaviour.
+
+## Project Structure
+
+```
+evombt-testing/
+├── backend/
+│   ├── main.py             # FastAPI SUT + SSE telemetry server
+│   └── dashboard.html      # Real-time dashboard
+├── evombt-tests/
+│   ├── src/main/java/org/evombt/
+│   │   ├── OrderEFSM.java  # EFSM model definition
+│   │   └── OrderRunner.java # Test concretisation & Oracle
+│   ├── mbt-files/tests/    # Generated abstract test paths (auto-created)
+│   ├── lib/EvoMBT.jar      # iv4xr-mbt library
+│   ├── pom.xml
+│   └── run_pipeline.bat    # ← entry point for running tests
+└── README.md
+```

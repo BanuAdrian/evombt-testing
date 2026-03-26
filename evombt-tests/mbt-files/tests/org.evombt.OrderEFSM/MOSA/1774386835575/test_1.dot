@@ -1,0 +1,31 @@
+# Total number of goals covered by this test: 9
+# Empty --> N_Items
+# N_Items --> N_Items_Voucher
+# N_Items --> N_Items
+# N_Items_Voucher --> N_Items_Voucher
+# Fail --> Pending_Pay
+# Pending_Pay --> Success
+# Checkout --> Pending_Pay
+# N_Items_Voucher --> Checkout
+# Pending_Pay --> Fail
+
+digraph g {
+"Empty" -> "N_Items" [label = "1-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items" -> "N_Items" [label = "2-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items" -> "N_Items" [label = "3-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items" -> "N_Items" [label = "4-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items" -> "N_Items" [label = "5-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items" -> "N_Items" [label = "6-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items" -> "N_Items_Voucher" [label = "7-null/null/hasVoucher[0]:=1; cost[0]:=(cost[0] - 5); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "8-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "9-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "10-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "11-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "12-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "N_Items_Voucher" [label = "13-null/null/itemsCount[0]:=(itemsCount[0] + 1); cost[0]:=(cost[0] + 10); /null"];
+"N_Items_Voucher" -> "Checkout" [label = "14-null/(itemsCount[0] > 0)/null/null"];
+"Checkout" -> "Pending_Pay" [label = "15-null/(walletAmount[100] < cost[0])/null/null"];
+"Pending_Pay" -> "Fail" [label = "16-null/null/null/null"];
+"Fail" -> "Pending_Pay" [label = "17-null/null/null/null"];
+"Pending_Pay" -> "Success" [label = "18-null/null/null/null"];
+}
